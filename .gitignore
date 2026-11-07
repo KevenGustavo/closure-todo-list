@@ -1,0 +1,46 @@
+# --- Geral ---
+# Arquivos de sistema operacional
+.DS_Store
+Thumbs.db
+*.log
+
+# --- Dependências ---
+# Dependências do Node.js (para shadow-cljs)
+/node_modules/
+
+# --- Clojure & Java ---
+# Pasta de build padrão
+/target/
+
+# Cache de dependências do Clojure CLI
+.cpcache/
+.clj-kondo/
+.cider-repl-history
+
+# --- shadow-cljs (Frontend) ---
+# Saída do build do frontend
+/resources/public/js/
+
+# Cache do shadow-cljs
+.shadow-cljs/
+
+# --- IDEs ---
+# VS Code
+.vscode/
+
+# Emacs
+*~
+\#*\#
+
+# Calva (VS Code Clojure)
+.calva/
+
+# --- Banco de Dados (usado a partir da Fase 5) ---
+*.db
+*.sqlite
+*.sqlite3
+
+# --- Arquivos Locais de Planejamento e Estudo---
+src-tutoriais/
+docs/
+*.zip
