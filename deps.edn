@@ -2,4 +2,5 @@
  :deps
  {org.clojure/clojure {:mvn/version "1.11.1"}
   thheller/shadow-cljs {:mvn/version "2.28.23"}
-  reagent/reagent {:mvn/version "2.0.0"}}}
+  reagent/reagent {:mvn/version "2.0.0"}
+  org.clojure/core.async {:mvn/version "1.6.681"}}}
