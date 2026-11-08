@@ -78,43 +78,68 @@
 ;; --- Componentes da Interface (Reagent / Hiccup) ---
 
 (defn todo-form
-  "Formulário para inserção de novas tarefas."
+  "Formulário para inserção de novas tarefas com suporte a Enter e limpeza de espaços."
   []
-  [:div.todo-input
-   [:input
-    {:type "text"
-     :placeholder "O que precisa ser feito?"
-     :value (:input-text @app-state)
-     :on-change #(swap! app-state assoc :input-text (-> % .-target .-value))}]
-   [:button
-    {:on-click (fn []
-                 (let [titulo (:input-text @app-state)]
-                   (when-not (str/blank? titulo)
-                     (create-todo {:title titulo})
-                     (swap! app-state assoc :input-text ""))))}
-    "Adicionar"]])
+  (let [submeter (fn []
+                   (let [titulo (:input-text @app-state)]
+                     (when-not (str/blank? titulo)
+                       (create-todo {:title (str/trim titulo)})
+                       (swap! app-state assoc :input-text ""))))]
+    [:div.todo-input
+     [:input
+      {:type "text"
+       :placeholder "O que precisa ser feito? (Pressione Enter)"
+       :value (:input-text @app-state)
+       :on-change #(swap! app-state assoc :input-text (-> % .-target .-value))
+       :on-key-down #(when (= (.-key %) "Enter")
+                       (submeter))}]
+     [:button
+      {:on-click submeter}
+      "Adicionar"]]))
 
 (defn todo-list
-  "Listagem interativa das tarefas com suporte a Toggle (checkbox) e Delete (botão X)."
+  "Listagem interativa com feedback de lista vazia e contador reativo."
   []
-  [:ul.todo-list
-   (for [todo (:todos @app-state)]
-     (let [id (or (:todos/id todo) (:id todo))
-           titulo (or (:todos/title todo) (:title todo))
-           completed-val (or (:todos/completed todo) (:completed todo) 0)
-           is-completed (if (boolean? completed-val)
-                          completed-val
-                          (not= 0 completed-val))]
-       ^{:key id}
-       [:li.todo-item {:class (when is-completed "completed")}
-        [:input.todo-checkbox
-         {:type "checkbox"
-          :checked is-completed
-          :on-change #(toggle-todo id)}]
-        [:span.todo-title titulo]
-        [:button.delete-btn
-         {:on-click #(delete-todo id)}
-         "X"]]))])
+  (let [todos (:todos @app-state)
+        total (count todos)
+        concluidas (count (filter (fn [t]
+                                    (let [c (or (:todos/completed t) (:completed t) 0)]
+                                      (if (boolean? c) c (not= 0 c))))
+                                  todos))
+        pendentes (- total concluidas)]
+    [:div
+     (if (empty? todos)
+       (when-not (:loading @app-state)
+         [:p {:style {:text-align "center" :color "#94a3b8" :padding "20px 0" :font-size "14px"}}
+          "Nenhuma tarefa cadastrada. Adicione uma tarefa acima!"])
+       [:ul.todo-list
+        (for [todo todos]
+          (let [id (or (:todos/id todo) (:id todo))
+                titulo (or (:todos/title todo) (:title todo))
+                completed-val (or (:todos/completed todo) (:completed todo) 0)
+                is-completed (if (boolean? completed-val)
+                               completed-val
+                               (not= 0 completed-val))]
+            ^{:key id}
+            [:li.todo-item {:class (when is-completed "completed")}
+             [:input.todo-checkbox
+              {:type "checkbox"
+               :checked is-completed
+               :on-change #(toggle-todo id)}]
+             [:span.todo-title titulo]
+             [:button.delete-btn
+              {:on-click #(delete-todo id)}
+              "X"]]))])
+     (when (pos? total)
+       [:div {:style {:display "flex"
+                      :justify-content "space-between"
+                      :margin-top "16px"
+                      :padding-top "12px"
+                      :border-top "1px solid #edf2f7"
+                      :font-size "13px"
+                      :color "#64748b"}}
+        [:span (str pendentes " pendente(s)")]
+        [:span (str concluidas " concluída(s) | Total: " total)]])]))
 
 (defn app
   "Componente raiz com indicadores de carregamento e mensagem de erro amigável."
