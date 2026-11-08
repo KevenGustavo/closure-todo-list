@@ -49,7 +49,28 @@
                        {:method "POST"
                         :headers {"Content-Type" "application/json"}
                         :body (js/JSON.stringify (clj->js todo-data))}))
-      ;; Ao confirmar a criação, atualiza a lista chamando get-todos:
+      (get-todos)
+      (catch js/Error e
+        (swap! app-state assoc :error (.-message e) :loading false)))))
+
+(defn toggle-todo
+  "Dispara a alternância de status de conclusão (concluído/pendente) de uma tarefa."
+  [id]
+  (go
+    (try
+      (<p! (fetch-json (str api-url "/todos/" id "/toggle")
+                       {:method "POST"}))
+      (get-todos)
+      (catch js/Error e
+        (swap! app-state assoc :error (.-message e) :loading false)))))
+
+(defn delete-todo
+  "Dispara a remoção definitiva de uma tarefa da lista."
+  [id]
+  (go
+    (try
+      (<p! (fetch-json (str api-url "/todos/" id)
+                       {:method "DELETE"}))
       (get-todos)
       (catch js/Error e
         (swap! app-state assoc :error (.-message e) :loading false)))))
@@ -57,7 +78,7 @@
 ;; --- Componentes da Interface (Reagent / Hiccup) ---
 
 (defn todo-form
-  "Formulário para inserção de novas tarefas com disparo assíncrono."
+  "Formulário para inserção de novas tarefas."
   []
   [:div.todo-input
    [:input
@@ -74,16 +95,29 @@
     "Adicionar"]])
 
 (defn todo-list
-  "Listagem das tarefas recebidas da API."
+  "Listagem interativa das tarefas com suporte a Toggle (checkbox) e Delete (botão X)."
   []
   [:ul.todo-list
    (for [todo (:todos @app-state)]
-     ^{:key (or (:id todo) (:todos/id todo))}
-     [:li.todo-item
-      [:span.todo-title (or (:title todo) (:todos/title todo))]])])
+     (let [id (or (:todos/id todo) (:id todo))
+           titulo (or (:todos/title todo) (:title todo))
+           completed-val (or (:todos/completed todo) (:completed todo) 0)
+           is-completed (if (boolean? completed-val)
+                          completed-val
+                          (not= 0 completed-val))]
+       ^{:key id}
+       [:li.todo-item {:class (when is-completed "completed")}
+        [:input.todo-checkbox
+         {:type "checkbox"
+          :checked is-completed
+          :on-change #(toggle-todo id)}]
+        [:span.todo-title titulo]
+        [:button.delete-btn
+         {:on-click #(delete-todo id)}
+         "X"]]))])
 
 (defn app
-  "Componente raiz da aplicação com tratamento de status de carregamento e erro."
+  "Componente raiz com indicadores de carregamento e mensagem de erro amigável."
   []
   [:div.todo-app
    [:h1 "Todo List"]
@@ -96,7 +130,7 @@
 
 ;; --- Ponto de Entrada da Aplicação ---
 (defn ^:export init
-  "Inicializa o React 19 e dispara a carga inicial de tarefas da API."
+  "Inicializa o React 19 e dispara a carga inicial das tarefas."
   []
   (println "Frontend Todo List inicializado...")
   (let [root (rdom/create-root (js/document.getElementById "app"))]
