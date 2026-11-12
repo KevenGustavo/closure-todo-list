@@ -9,6 +9,7 @@
             [todo.backend.db :as db])
   (:gen-class))
 
+;; Configuracao das rotas da API
 (def app-routes
   (ring/router
    [["/api/hello"
@@ -16,7 +17,10 @@
 
     ["/api/todos"
      {:get {:handler handler/list-todos-handler}
-      :post {:handler handler/create-todo-handler}}]]
+      :post {:handler handler/create-todo-handler}}]
+
+    ["/api/todos/:id/toggle"
+     {:post {:handler handler/toggle-todo-handler}}]]
 
    {:data
     {:middleware
@@ -25,15 +29,18 @@
       wrap-params
       wrap-keyword-params]}}))
 
+;; Aplicacao HTTP Ring
 (def app
   (ring/ring-handler
    app-routes
    (ring/create-default-handler)))
 
+;; Inicializacao do servidor Jetty
 (defn start-server [port]
   (println (str "Servidor iniciado na porta " port))
   (jetty/run-jetty #'app {:port port :join? false}))
 
+;; Ponto de entrada da aplicacao
 (defn -main [& args]
   (let [port (Integer/parseInt (or (first args) "3000"))]
     (db/initialize-database!)

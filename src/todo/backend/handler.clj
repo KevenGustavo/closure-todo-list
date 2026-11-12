@@ -27,3 +27,14 @@
          :body new-todo})
       {:status 400
        :body {:error "O titulo (title) e obrigatorio"}})))
+
+(defn toggle-todo-handler
+  "Alterna o status de conclusao de uma tarefa pelo ID."
+  [request]
+  (let [id (Integer/parseInt
+             (get-in request [:path-params :id]))]
+    (if-let [updated-todo (db/toggle-todo! id)]
+      {:status 200
+       :body updated-todo}
+      {:status 404
+       :body {:error "Todo nao encontrado"}})))
