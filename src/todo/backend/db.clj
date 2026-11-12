@@ -1,5 +1,5 @@
 (ns todo.backend.db
-  "Gerencia os dados de tarefas e a infraestrutura SQLite."
+  "Gerencia a persistencia dos todos com SQLite e next.jdbc."
   (:require [next.jdbc :as jdbc]))
 
 ;; Configuracao do banco SQLite
@@ -9,7 +9,7 @@
 
 ;; Inicializacao do banco de dados
 (defn initialize-database!
-  "Cria a tabela de tarefas caso ela nao exista."
+  "Cria a tabela todos caso ela nao exista."
   []
   (jdbc/execute! db-spec
     ["CREATE TABLE IF NOT EXISTS todos (
@@ -20,22 +20,23 @@
         created_at TEXT
       )"]))
 
-;; Banco em memoria - mantido ate a L5
-(def todos-db (atom {}))
-(def next-id (atom 0))
-
+;; Listagem de tarefas
 (defn get-all-todos
-  "Retorna todas as tarefas registradas em memoria."
+  "Retorna todas as tarefas persistidas no banco."
   []
-  (vec (vals @todos-db)))
+  (jdbc/execute! db-spec
+    ["SELECT * FROM todos ORDER BY created_at DESC"]))
 
+;; Criacao de tarefas
 (defn create-todo
-  "Cria uma tarefa com ID unico em memoria."
+  "Insere uma tarefa no SQLite e retorna o registro criado."
   [todo-data]
-  (let [id (swap! next-id inc)
-        new-todo (assoc todo-data
-                        :id id
-                        :completed false
-                        :created-at (str (java.time.Instant/now)))]
-    (swap! todos-db assoc id new-todo)
-    new-todo))
+  (jdbc/execute-one! db-spec
+    ["INSERT INTO todos
+        (title, description, completed, created_at)
+      VALUES (?, ?, ?, ?)
+      RETURNING *"
+     (:title todo-data)
+     (:description todo-data)
+     0
+     (str (java.time.Instant/now))]))
