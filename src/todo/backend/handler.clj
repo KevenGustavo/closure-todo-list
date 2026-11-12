@@ -28,24 +28,34 @@
       {:status 400
        :body {:error "O titulo (title) e obrigatorio"}})))
 
+(defn- parse-id
+  "Converte o parametro :id para inteiro positivo ou retorna nil."
+  [request]
+  (when-let [raw-id (get-in request [:path-params :id])]
+    (when-let [id (parse-long raw-id)]
+      (when (pos? id)
+        id))))
+
 (defn toggle-todo-handler
   "Alterna o status de conclusao de uma tarefa pelo ID."
   [request]
-  (let [id (Integer/parseInt
-             (get-in request [:path-params :id]))]
+  (if-let [id (parse-id request)]
     (if-let [updated-todo (db/toggle-todo! id)]
       {:status 200
        :body updated-todo}
       {:status 404
-       :body {:error "Todo nao encontrado"}})))
+       :body {:error "Todo nao encontrado"}})
+    {:status 400
+     :body {:error "ID invalido"}}))
 
 (defn delete-todo-handler
   "Exclui uma tarefa pelo ID."
   [request]
-  (let [id (Integer/parseInt
-             (get-in request [:path-params :id]))]
+  (if-let [id (parse-id request)]
     (if-let [deleted-todo (db/delete-todo! id)]
       {:status 200
        :body deleted-todo}
       {:status 404
-       :body {:error "Todo nao encontrado"}})))
+       :body {:error "Todo nao encontrado"}})
+    {:status 400
+     :body {:error "ID invalido"}}))

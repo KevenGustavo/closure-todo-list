@@ -8,7 +8,7 @@ Este documento registra as **principais dificuldades técnicas reais** enfrentad
 
 - **O Problema:** Ao conectar o frontend na porta `8000` com a API REST na porta `3000`, as chamadas `fetch` falhavam silenciosamente e o console do navegador exibia o erro de bloqueio por política de CORS (`Cross-Origin Resource Sharing`), embora requisições diretas via `curl` no terminal funcionassem perfeitamente.
 - **Causa Técnica:** O bloqueio de CORS é imposto pelo navegador por segurança ao comunicar origens diferentes (portas distintas). Ao enviar uma requisição `POST` com o cabeçalho `Content-Type: application/json`, o navegador dispara previamente uma requisição de sondagem (**preflight**) via método HTTP `OPTIONS` consultando se o servidor aceita aquele cabeçalho e método. O servidor Jetty/Reitit não possuía rota para `OPTIONS` e retornava `404 Not Found`.
-- **Solução:** Adicionamos a biblioteca `ring-cors/ring-cors` (`0.1.13`) e registramos o middleware `wrap-cors` como o **primeiro** (mais externo) no vetor de middlewares do `core.clj`, configurando explicitamente a origem confiável (`http://localhost:8000`), os métodos permitidos (`:get`, `:post`, `:put`, `:delete`) e o header `:access-control-allow-headers ["Content-Type"]`. Sendo o primeiro da cadeia, o `wrap-cors` intercepta o preflight e responde `200 OK` antes do roteador Reitit processar a rota.
+- **Solução:** Adicionamos a biblioteca `ring-cors/ring-cors` (`0.1.13`) em `deps.edn` e envolvemos a aplicação Ring (`app` em `src/todo/backend/core.clj`) com o middleware `wrap-cors` como camada mais externa ao redor do `ring/ring-handler`, configurando explicitamente a origem confiável (`#"http://localhost:8000"`), os métodos permitidos (`:get`, `:post`, `:put`, `:delete`, `:options`) e o header `:access-control-allow-headers ["Content-Type"]`. Estando por fora do roteador Reitit, o `wrap-cors` intercepta o preflight `OPTIONS` e responde `200 OK` antes que a requisição caia no handler padrão `404`.
 
 ---
 
@@ -99,8 +99,6 @@ clj -M -e "(require 'todo.backend.core) (println (resolve 'todo.backend.core/-ma
 
 **Causa técnica:** O comando de teste foi executado com o texto `ID` no lugar do identificador numérico da tarefa. O handler utilizava `Integer/parseInt`, que gera uma exceção quando recebe um valor não numérico.
 
-**Solução aplicada:** Consultamos as tarefas cadastradas por meio de `GET /api/todos` e utilizamos um ID numérico existente para executar a exclusão corretamente.
-
-**Limitação identificada:** O backend ainda pode ser aprimorado para retornar `400 Bad Request` em vez de `500 Server Error` quando receber IDs inválidos.
+**Solução aplicada:** Inicialmente consultamos as tarefas cadastradas por meio de `GET /api/todos` e utilizamos um ID numérico existente para executar a exclusão corretamente. Em seguida, aprimoramos `src/todo/backend/handler.clj` extraindo o helper privado `parse-id` (utilizando `parse-long` e validação `pos?`), fazendo com que tanto `toggle-todo-handler` quanto `delete-todo-handler` retornem `400 Bad Request` (`{:error "ID invalido"}`) em vez de `500 Server Error` quando recebem IDs inválidos.
 
 **Aprendizado:** Uma API deve validar dados recebidos antes de processá-los, tratando entradas inválidas com códigos HTTP apropriados.
