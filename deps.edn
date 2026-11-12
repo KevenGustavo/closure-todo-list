@@ -6,6 +6,7 @@
   org.clojure/core.async {:mvn/version "1.6.681"}
   ring/ring-core {:mvn/version "1.12.2"}
   ring/ring-jetty-adapter {:mvn/version "1.12.2"}
-  metosin/reitit-ring {:mvn/version "0.7.0"}}
+  metosin/reitit-ring {:mvn/version "0.7.0"}
+  ring/ring-json {:mvn/version "0.5.1"}}
  :aliases
  {:run {:main-opts ["-m" "todo.backend.core"]}}}
