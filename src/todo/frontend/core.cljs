@@ -56,6 +56,7 @@
 (defn toggle-todo
   "Dispara a alternância de status de conclusão (concluído/pendente) de uma tarefa."
   [id]
+  (swap! app-state assoc :error nil)
   (go
     (try
       (<p! (fetch-json (str api-url "/todos/" id "/toggle")
@@ -67,6 +68,7 @@
 (defn delete-todo
   "Dispara a remoção definitiva de uma tarefa da lista."
   [id]
+  (swap! app-state assoc :error nil)
   (go
     (try
       (<p! (fetch-json (str api-url "/todos/" id)
@@ -75,27 +77,100 @@
       (catch js/Error e
         (swap! app-state assoc :error (.-message e) :loading false)))))
 
+;; --- Ícones SVG Inline ---
+
+(defn icon-logo
+  "Ícone vetorial principal de lista de tarefas."
+  []
+  [:svg {:width 22 :height 22 :viewBox "0 0 24 24" :fill "none"
+         :stroke "currentColor" :stroke-width 2
+         :stroke-linecap "round" :stroke-linejoin "round"
+         :aria-hidden "true"}
+   [:path {:d "M9 11l3 3L22 4"}]
+   [:path {:d "M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"}]])
+
+(defn icon-plus
+  "Ícone vetorial de adição."
+  []
+  [:svg {:width 18 :height 18 :viewBox "0 0 24 24" :fill "none"
+         :stroke "currentColor" :stroke-width 2.2
+         :stroke-linecap "round" :stroke-linejoin "round"
+         :aria-hidden "true"}
+   [:path {:d "M12 5v14"}]
+   [:path {:d "M5 12h14"}]])
+
+(defn icon-check
+  "Ícone vetorial de conclusão para o checkbox customizado."
+  []
+  [:svg {:width 13 :height 13 :viewBox "0 0 24 24" :fill "none"
+         :stroke "currentColor" :stroke-width 3
+         :stroke-linecap "round" :stroke-linejoin "round"
+         :aria-hidden "true"}
+   [:path {:d "M20 6L9 17l-5-5"}]])
+
+(defn icon-trash
+  "Ícone vetorial de lixeira para exclusão de tarefa."
+  []
+  [:svg {:width 16 :height 16 :viewBox "0 0 24 24" :fill "none"
+         :stroke "currentColor" :stroke-width 2
+         :stroke-linecap "round" :stroke-linejoin "round"
+         :aria-hidden "true"}
+   [:path {:d "M3 6h18"}]
+   [:path {:d "M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"}]
+   [:path {:d "M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"}]
+   [:path {:d "M10 11v6"}]
+   [:path {:d "M14 11v6"}]])
+
+(defn icon-empty
+  "Ícone vetorial para o estado de lista vazia."
+  []
+  [:svg {:width 24 :height 24 :viewBox "0 0 24 24" :fill "none"
+         :stroke "currentColor" :stroke-width 1.8
+         :stroke-linecap "round" :stroke-linejoin "round"
+         :aria-hidden "true"}
+   [:rect {:x 8 :y 2 :width 8 :height 4 :rx 1 :ry 1}]
+   [:path {:d "M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"}]
+   [:path {:d "M9 12h6"}]
+   [:path {:d "M9 16h4"}]])
+
+(defn icon-alert
+  "Ícone vetorial de aviso para mensagens de erro."
+  []
+  [:svg {:width 16 :height 16 :viewBox "0 0 24 24" :fill "none"
+         :stroke "currentColor" :stroke-width 2
+         :stroke-linecap "round" :stroke-linejoin "round"
+         :aria-hidden "true"}
+   [:circle {:cx 12 :cy 12 :r 10}]
+   [:path {:d "M12 8v4"}]
+   [:path {:d "M12 16h.01"}]])
+
 ;; --- Componentes da Interface (Reagent / Hiccup) ---
 
 (defn todo-form
   "Formulário para inserção de novas tarefas com suporte a Enter e limpeza de espaços."
   []
-  (let [submeter (fn []
-                   (let [titulo (:input-text @app-state)]
-                     (when-not (str/blank? titulo)
-                       (create-todo {:title (str/trim titulo)})
-                       (swap! app-state assoc :input-text ""))))]
+  (let [titulo (:input-text @app-state)
+        vazio? (str/blank? titulo)
+        submeter (fn []
+                   (when-not vazio?
+                     (create-todo {:title (str/trim titulo)})
+                     (swap! app-state assoc :input-text "")))]
     [:div.todo-input
      [:input
-      {:type "text"
+      {:id "todo-title-input"
+       :name "title"
+       :type "text"
        :placeholder "O que precisa ser feito? (Pressione Enter)"
-       :value (:input-text @app-state)
+       :value titulo
        :on-change #(swap! app-state assoc :input-text (-> % .-target .-value))
        :on-key-down #(when (= (.-key %) "Enter")
                        (submeter))}]
-     [:button
-      {:on-click submeter}
-      "Adicionar"]]))
+     [:button.add-btn
+      {:type "button"
+       :disabled vazio?
+       :on-click submeter}
+      [icon-plus]
+      [:span "Adicionar"]]]))
 
 (defn todo-list
   "Listagem interativa com feedback de lista vazia e contador reativo."
@@ -110,8 +185,10 @@
     [:div
      (if (empty? todos)
        (when-not (:loading @app-state)
-         [:p {:style {:text-align "center" :color "#94a3b8" :padding "20px 0" :font-size "14px"}}
-          "Nenhuma tarefa cadastrada. Adicione uma tarefa acima!"])
+         [:div.empty-state
+          [:div.empty-icon [icon-empty]]
+          [:p.empty-title "Nenhuma tarefa cadastrada"]
+          [:p.empty-hint "Adicione uma tarefa acima ou pressione Enter para começar."]])
        [:ul.todo-list
         (for [todo todos]
           (let [id (or (:todos/id todo) (:id todo))
@@ -119,37 +196,47 @@
                 completed-val (or (:todos/completed todo) (:completed todo) 0)
                 is-completed (if (boolean? completed-val)
                                completed-val
-                               (not= 0 completed-val))]
+                               (not= 0 completed-val))
+                checkbox-id (str "todo-check-" id)]
             ^{:key id}
             [:li.todo-item {:class (when is-completed "completed")}
-             [:input.todo-checkbox
-              {:type "checkbox"
-               :checked is-completed
-               :on-change #(toggle-todo id)}]
-             [:span.todo-title titulo]
+             [:label.todo-checkbox-label
+              [:input.todo-checkbox-input
+               {:id checkbox-id
+                :name (str "todo-" id)
+                :type "checkbox"
+                :checked is-completed
+                :on-change #(toggle-todo id)}]
+              [:span.todo-checkbox-box
+               (when is-completed [icon-check])]]
+             [:label.todo-title {:for checkbox-id} titulo]
              [:button.delete-btn
-              {:on-click #(delete-todo id)}
-              "X"]]))])
+              {:type "button"
+               :title "Excluir tarefa"
+               :aria-label (str "Excluir tarefa: " titulo)
+               :on-click #(delete-todo id)}
+              [icon-trash]]]))])
      (when (pos? total)
-       [:div {:style {:display "flex"
-                      :justify-content "space-between"
-                      :margin-top "16px"
-                      :padding-top "12px"
-                      :border-top "1px solid #edf2f7"
-                      :font-size "13px"
-                      :color "#64748b"}}
-        [:span (str pendentes " pendente(s)")]
-        [:span (str concluidas " concluída(s) | Total: " total)]])]))
+       [:div.todo-footer
+        [:span.stat-pill (str pendentes " pendente(s)")]
+        [:div.stat-group
+         [:span.stat-pill (str concluidas " concluída(s)")]
+         [:span (str "Total: " total)]]])]))
 
 (defn app
   "Componente raiz com indicadores de carregamento e mensagem de erro amigável."
   []
   [:div.todo-app
-   [:h1 "Todo List"]
+   [:header.app-header
+    [:div.app-badge [icon-logo]]
+    [:h1 "Todo List"]
+    [:p.app-subtitle "Organize suas tarefas diárias"]]
    (when (:loading @app-state)
-     [:p {:style {:color "#64748b" :text-align "center"}} "Carregando tarefas..."])
+     [:div.status-banner.loading "Carregando tarefas..."])
    (when-let [erro (:error @app-state)]
-     [:p {:style {:color "#ef4444" :text-align "center"}} (str "Aviso: " erro)])
+     [:div.status-banner.error
+      [icon-alert]
+      [:span (str "Aviso: " erro)]])
    [todo-form]
    [todo-list]])
 
