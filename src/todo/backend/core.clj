@@ -5,6 +5,7 @@
                                           wrap-json-body]]
             [ring.middleware.params :refer [wrap-params]]
             [ring.middleware.keyword-params :refer [wrap-keyword-params]]
+            [ring.middleware.cors :refer [wrap-cors]]
             [todo.backend.handler :as handler]
             [todo.backend.db :as db])
   (:gen-class))
@@ -34,9 +35,13 @@
 
 ;; Aplicacao HTTP Ring
 (def app
-  (ring/ring-handler
-   app-routes
-   (ring/create-default-handler)))
+  (-> (ring/ring-handler
+       app-routes
+       (ring/create-default-handler))
+      (wrap-cors
+       :access-control-allow-origin [#"http://localhost:8000"]
+       :access-control-allow-methods [:get :post :put :delete :options]
+       :access-control-allow-headers ["Content-Type"])))
 
 ;; Inicializacao do servidor Jetty
 (defn start-server [port]
