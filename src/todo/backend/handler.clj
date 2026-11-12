@@ -38,3 +38,14 @@
        :body updated-todo}
       {:status 404
        :body {:error "Todo nao encontrado"}})))
+
+(defn delete-todo-handler
+  "Exclui uma tarefa pelo ID."
+  [request]
+  (let [id (Integer/parseInt
+             (get-in request [:path-params :id]))]
+    (if-let [deleted-todo (db/delete-todo! id)]
+      {:status 200
+       :body deleted-todo}
+      {:status 404
+       :body {:error "Todo nao encontrado"}})))

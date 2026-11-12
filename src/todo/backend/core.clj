@@ -20,7 +20,10 @@
       :post {:handler handler/create-todo-handler}}]
 
     ["/api/todos/:id/toggle"
-     {:post {:handler handler/toggle-todo-handler}}]]
+     {:post {:handler handler/toggle-todo-handler}}]
+
+    ["/api/todos/:id"
+     {:delete {:handler handler/delete-todo-handler}}]]
 
    {:data
     {:middleware

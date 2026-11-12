@@ -50,3 +50,12 @@
       WHERE id = ?
       RETURNING *"
      id]))
+
+(defn delete-todo!
+  "Remove uma tarefa pelo ID e retorna o registro excluido."
+  [id]
+  (jdbc/execute-one! db-spec
+    ["DELETE FROM todos
+      WHERE id = ?
+      RETURNING *"
+     id]))
